@@ -23,12 +23,12 @@ public class AmbulanceDriversController(IAmbulanceTrackingService tracking) : Am
     [HttpPost("location")]
     [HasPermission("ambulances.driver.location")]
     public async Task<IActionResult> Location(DriverLocationRequest request, CancellationToken cancellationToken)
-        => Ok(ApiResponse<DriverLocationResultDto>.Ok(await tracking.UpdateLocationAsync(UserId, request, cancellationToken)));
+        => Ok(ApiResponse<DriverLocationResultDto>.Ok(await tracking.UpdateLocationAsync(UserId, request, cancellationToken, Actor)));
 
     [HttpPost("accept")]
     [HasPermission("ambulances.driver.status")]
     public async Task<IActionResult> Accept(CancellationToken cancellationToken)
-        => Ok(ApiResponse<DriverAssignmentDto?>.Ok(await tracking.AcceptAsync(UserId, Actor, cancellationToken), "Assignment accepted."));
+        => Ok(ApiResponse<DriverAssignmentDto?>.Ok(await tracking.AcceptAndStartAsync(UserId, Actor, cancellationToken), "Assignment accepted. Tracking started."));
 
     [HttpPost("decline")]
     [HasPermission("ambulances.driver.status")]
@@ -44,6 +44,12 @@ public class AmbulanceDriversController(IAmbulanceTrackingService tracking) : Am
     [HasPermission("ambulances.driver.status")]
     public async Task<IActionResult> Arrived(CancellationToken cancellationToken)
         => Ok(ApiResponse<DriverAssignmentDto?>.Ok(await tracking.ArrivedAsync(UserId, Actor, cancellationToken), "Arrival recorded."));
+
+    /// <summary>Fallback only: the server normally records the hospital arrival itself from GPS.</summary>
+    [HttpPost("hospital-arrived")]
+    [HasPermission("ambulances.driver.status")]
+    public async Task<IActionResult> HospitalArrived(CancellationToken cancellationToken)
+        => Ok(ApiResponse<DriverAssignmentDto?>.Ok(await tracking.HospitalArrivedAsync(UserId, Actor, cancellationToken), "Hospital arrival recorded."));
 
     [HttpPost("patient-picked-up")]
     [HasPermission("ambulances.driver.status")]

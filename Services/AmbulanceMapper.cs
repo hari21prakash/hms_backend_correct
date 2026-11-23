@@ -68,8 +68,26 @@ public static class AmbulanceMapper
             view.IncludeDriver ? FullName(assignment.DriverUser) : null,
             view.IncludeDriver ? assignment.DriverUser.PhoneNumber : null,
             assignment.AssignedAt, assignment.AcceptedAt, assignment.StartedAt, assignment.ArrivedAt, assignment.PickedUpAt,
-            assignment.CompletedAt, assignment.DeclineReason, location, distance);
+            assignment.CompletedAt, assignment.DeclineReason, location, distance,
+            assignment.ArrivalMethod, assignment.HospitalArrivalMethod, assignment.PickupConfirmedSource, PendingConfirmation(assignment));
     }
+
+    /// <summary>
+    /// The confirmation a trip is waiting for. GPS can show the ambulance is at the scene or at the hospital, but only a person can say the
+    /// patient is on board or has been handed over, so these two moments are what the dispatch desk watches for.
+    /// </summary>
+    public static string? PendingConfirmation(AmbulanceAssignment assignment)
+    {
+        if (!assignment.IsActive) return null;
+        if (assignment.Status == AssignmentStatus.Arrived) return "Pickup";
+        if (assignment.Status == AssignmentStatus.PickedUp && assignment.Request.Status == AmbulanceRequestStatus.AtHospital) return "Handover";
+        return null;
+    }
+
+    public static TripConfirmationsDto ToTrip(AmbulanceAssignment a) => new(
+        a.ArrivalMethod, a.ArrivedAt, a.PickupConfirmedSource, a.PickupConfirmedByName, a.PickedUpAt,
+        a.HospitalArrivalMethod, a.HospitalArrivedAt, a.HandoverConfirmedSource, a.HandoverConfirmedByName,
+        a.HandoverConfirmedSource is null ? null : a.CompletedAt);
 
     private static bool IsActiveTrip(AmbulanceAssignment assignment) => assignment.IsActive && AmbulanceRules.IsTripActive(assignment.Status);
 
@@ -77,8 +95,10 @@ public static class AmbulanceMapper
         AmbulanceRequest request,
         AmbulanceAssignment? activeAssignment,
         IReadOnlyList<StatusHistoryItemDto>? history,
-        AmbulanceViewOptions view)
+        AmbulanceViewOptions view,
+        AmbulanceAssignment? latestAssignment = null)
     {
+        var tripSource = latestAssignment ?? activeAssignment;
         return new DispatchRequestDto(
             request.Id, request.RequestNumber, request.Status, request.StatusReason,
             request.Latitude, request.Longitude, request.Address, request.EmergencyType, request.InjuredCount,
@@ -86,7 +106,8 @@ public static class AmbulanceMapper
             request.PatientId, request.Patient?.PatientNumber,
             request.Patient is null ? null : $"{request.Patient.FirstName} {request.Patient.LastName}",
             activeAssignment is null ? null : ToAssignmentDto(activeAssignment, view),
-            history);
+            history,
+            tripSource is null ? null : ToTrip(tripSource));
     }
 
     public static string StatusLabel(AmbulanceRequestStatus status) => status switch

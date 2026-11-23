@@ -13,8 +13,10 @@ namespace HospitalManagement.Api.Services;
 /// The hospital dispatch desk. Assignment is race-safe: the unique partial indexes on AmbulanceAssignments (one active row per
 /// request and per ambulance) make double dispatch impossible even if two dispatchers click at the same moment.
 /// </summary>
-public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher publisher) : IAmbulanceDispatchService
+public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher publisher, TimeProvider? timeProvider = null) : IAmbulanceDispatchService
 {
+    private DateTime Now() => (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+
     public async Task<IReadOnlyList<DispatchRequestDto>> ListRequestsAsync(DispatchRequestQuery query, AmbulanceViewOptions view, CancellationToken cancellationToken)
     {
         var source = dbContext.AmbulanceRequests.AsNoTracking().Include(r => r.Patient).AsQueryable();
@@ -62,6 +64,7 @@ public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher
     public async Task<DispatchRequestDto> CancelAsync(Guid id, string? reason, AuditActor actor, AmbulanceViewOptions view, CancellationToken cancellationToken)
     {
         var text = RequireReason(reason, "cancelling");
+        using var gate = await AmbulanceGates.AcquireAsync(id, cancellationToken);      // never in the middle of a driver step or a GPS arrival
         await using var transaction = await BeginAsync(cancellationToken);
 
         var request = await LoadTrackedAsync(id, cancellationToken);
@@ -146,6 +149,50 @@ public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher
         return await BuildAsync(id, view, true, cancellationToken);
     }
 
+    public async Task<DispatchRequestDto> ConfirmPickupAsync(Guid id, AuditActor actor, AmbulanceViewOptions view, CancellationToken cancellationToken)
+    {
+        var userId = RequireUser(actor);
+        using var gate = await AmbulanceGates.AcquireAsync(id, cancellationToken);      // the same gate the driver's screen and GPS detection use
+        var request = await LoadTrackedAsync(id, cancellationToken);
+        var assignment = await LoadActiveAssignmentAsync(id, cancellationToken)
+            ?? throw new ConflictException("This request has no active ambulance assignment.");
+
+        // The first valid confirmation wins: if the driver (or another dispatcher) already confirmed, there is nothing left to do.
+        if (assignment.Status == AssignmentStatus.PickedUp) return await BuildAsync(id, view, true, cancellationToken);
+
+        await AmbulanceTripSteps.ConfirmPickupAsync(dbContext, assignment, request, AmbulanceRules.SourceDispatcher, userId, Now(), cancellationToken);
+        AuditWriter.Stage(dbContext, actor, "AmbulancePickupConfirmed", nameof(AmbulanceAssignment), assignment.Id.ToString(),
+            $"Request {request.RequestNumber}: patient pick-up confirmed by dispatch (ambulance {assignment.Ambulance.VehicleNumber}).");
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await publisher.RequestChangedAsync(id, assignment.Id, cancellationToken);
+        await publisher.AvailabilityChangedAsync(assignment.Ambulance);
+        return await BuildAsync(id, view, true, cancellationToken);
+    }
+
+    public async Task<DispatchRequestDto> ConfirmHandoverAsync(Guid id, AuditActor actor, AmbulanceViewOptions view, CancellationToken cancellationToken)
+    {
+        var userId = RequireUser(actor);
+        using var gate = await AmbulanceGates.AcquireAsync(id, cancellationToken);
+        var request = await LoadTrackedAsync(id, cancellationToken);
+        var assignment = await LoadActiveAssignmentAsync(id, cancellationToken);
+        if (assignment is null)
+        {
+            // Already handed over (by the driver or another dispatcher): nothing left to do. Otherwise there is no trip to complete.
+            var completed = await dbContext.AmbulanceAssignments.AsNoTracking()
+                .AnyAsync(a => a.RequestId == id && a.Status == AssignmentStatus.Completed, cancellationToken);
+            if (completed) return await BuildAsync(id, view, true, cancellationToken);
+            throw new ConflictException("This request has no active ambulance assignment.");
+        }
+
+        await AmbulanceTripSteps.ConfirmHandoverAsync(dbContext, assignment, request, AmbulanceRules.SourceDispatcher, userId, Now(), cancellationToken);
+        AuditWriter.Stage(dbContext, actor, "AmbulanceHandoverConfirmed", nameof(AmbulanceAssignment), assignment.Id.ToString(),
+            $"Request {request.RequestNumber}: patient handover confirmed by dispatch; ambulance {assignment.Ambulance.VehicleNumber} released.");
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await publisher.RequestChangedAsync(id, assignment.Id, cancellationToken);
+        await publisher.AvailabilityChangedAsync(assignment.Ambulance);
+        return await BuildAsync(id, view, true, cancellationToken);
+    }
+
     public async Task<DispatchRequestDto> CompleteAsync(Guid id, AuditActor actor, AmbulanceViewOptions view, CancellationToken cancellationToken)
     {
         var request = await LoadTrackedAsync(id, cancellationToken);
@@ -211,6 +258,13 @@ public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher
         return text ?? throw new RequestValidationException($"A reason is required when {action} a request.");
     }
 
+    private static Guid RequireUser(AuditActor actor) =>
+        actor.UserId ?? throw new ConflictException("Your user account could not be identified.");
+
+    private async Task<AmbulanceAssignment?> LoadActiveAssignmentAsync(Guid requestId, CancellationToken cancellationToken) =>
+        await dbContext.AmbulanceAssignments.Include(a => a.Request).Include(a => a.Ambulance)
+            .SingleOrDefaultAsync(a => a.RequestId == requestId && a.IsActive, cancellationToken);
+
     private async Task<AmbulanceRequest> LoadTrackedAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.AmbulanceRequests.SingleOrDefaultAsync(r => r.Id == id, cancellationToken)
         ?? throw new NotFoundException(nameof(AmbulanceRequest), id);
@@ -224,6 +278,10 @@ public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher
         var active = await dbContext.AmbulanceAssignments.AsNoTracking()
             .Include(a => a.Request).Include(a => a.Ambulance).ThenInclude(a => a.Provider).Include(a => a.DriverUser)
             .Where(a => a.RequestId == id && a.IsActive).FirstOrDefaultAsync(cancellationToken);
+        // Who confirmed what stays visible after the trip is completed (the active assignment is gone by then).
+        var latest = active ?? await dbContext.AmbulanceAssignments.AsNoTracking()
+            .Include(a => a.Request).Include(a => a.Ambulance).ThenInclude(a => a.Provider).Include(a => a.DriverUser)
+            .Where(a => a.RequestId == id).OrderByDescending(a => a.AssignedAt).FirstOrDefaultAsync(cancellationToken);
 
         IReadOnlyList<StatusHistoryItemDto>? history = null;
         if (includeHistory)
@@ -235,7 +293,7 @@ public class AmbulanceDispatchService(AppDbContext dbContext, AmbulancePublisher
                 .ToList();
         }
 
-        return AmbulanceMapper.ToRequestDto(request, active, history, view);
+        return AmbulanceMapper.ToRequestDto(request, active, history, view, latest);
     }
 
     private async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction?> BeginAsync(CancellationToken cancellationToken) =>

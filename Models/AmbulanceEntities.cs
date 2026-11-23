@@ -124,6 +124,27 @@ public class AmbulanceAssignment : BaseEntity
     public DateTime? AcceptedAt { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? ArrivedAt { get; set; }
+    /// <summary>"Auto" when the server's geofence check recorded the arrival at the pickup point, "Manual" when the driver did.</summary>
+    public string? ArrivalMethod { get; set; }
+    /// <summary>Where the ambulance was (last accepted GPS fix) when arrival at the pickup point was recorded. Null if unknown.</summary>
+    public double? ArrivedLatitude { get; set; }
+    public double? ArrivedLongitude { get; set; }
+    public double? ArrivedAccuracyMeters { get; set; }
+    /// <summary>When the ambulance arrived at the hospital (the request moves to AtHospital at the same moment).</summary>
+    public DateTime? HospitalArrivedAt { get; set; }
+    public string? HospitalArrivalMethod { get; set; }
+    public double? HospitalArrivedLatitude { get; set; }
+    public double? HospitalArrivedLongitude { get; set; }
+    public double? HospitalArrivedAccuracyMeters { get; set; }
+    /// <summary>Who confirmed the patient is on board: "Driver" or "Dispatcher". The first valid confirmation wins; later ones change nothing.</summary>
+    public string? PickupConfirmedSource { get; set; }
+    public Guid? PickupConfirmedByUserId { get; set; }
+    /// <summary>The confirmer's name at the time (kept as written, like an audit entry, so a later rename or deletion does not change history).</summary>
+    public string? PickupConfirmedByName { get; set; }
+    /// <summary>Who confirmed the handover that completed the trip: "Driver" or "Dispatcher".</summary>
+    public string? HandoverConfirmedSource { get; set; }
+    public Guid? HandoverConfirmedByUserId { get; set; }
+    public string? HandoverConfirmedByName { get; set; }
     public DateTime? PickedUpAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime? EndedAt { get; set; }

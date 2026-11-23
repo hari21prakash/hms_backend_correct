@@ -123,6 +123,12 @@ public class AmbulanceAssignmentConfiguration : IEntityTypeConfiguration<Ambulan
     public void Configure(EntityTypeBuilder<AmbulanceAssignment> builder)
     {
         builder.Property(a => a.DeclineReason).HasMaxLength(500);
+        builder.Property(a => a.ArrivalMethod).HasMaxLength(10);
+        builder.Property(a => a.HospitalArrivalMethod).HasMaxLength(10);
+        builder.Property(a => a.PickupConfirmedSource).HasMaxLength(12);
+        builder.Property(a => a.PickupConfirmedByName).HasMaxLength(150);
+        builder.Property(a => a.HandoverConfirmedSource).HasMaxLength(12);
+        builder.Property(a => a.HandoverConfirmedByName).HasMaxLength(150);
 
         builder.HasIndex(a => a.RequestId);
         builder.HasIndex(a => a.AmbulanceId);

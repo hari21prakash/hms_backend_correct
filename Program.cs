@@ -82,6 +82,7 @@ builder.Services.AddScoped<IAmbulanceService, AmbulanceService>();
 builder.Services.AddScoped<IAmbulanceProviderService, AmbulanceProviderService>();
 builder.Services.AddScoped<IAmbulanceRequestService, AmbulanceRequestService>();
 builder.Services.AddScoped<IAmbulanceDispatchService, AmbulanceDispatchService>();
+builder.Services.Configure<AmbulanceAutomationOptions>(builder.Configuration.GetSection(AmbulanceAutomationOptions.SectionName));
 builder.Services.AddScoped<IAmbulanceTrackingService, AmbulanceTrackingService>();
 builder.Services.AddScoped<AmbulancePublisher>();
 builder.Services.AddScoped<AmbulanceCallerResolver>();

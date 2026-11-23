@@ -32,6 +32,14 @@ public static class AmbulanceRules
     public const string DriverRoleName = "Ambulance Driver";
     public const string ProviderAdminRoleName = "Ambulance Provider Admin";
 
+    /// <summary>How an arrival was recorded: by the server's GPS geofence check, or by the driver as the fallback.</summary>
+    public const string ArrivalAuto = "Auto";
+    public const string ArrivalManual = "Manual";
+
+    /// <summary>Who confirmed pick-up or handover: the driver (fallback) or the hospital dispatch desk.</summary>
+    public const string SourceDriver = "Driver";
+    public const string SourceDispatcher = "Dispatcher";
+
     /// <summary>A server-side minimum gap between stored GPS fixes of one ambulance (protects the database from a chatty client).</summary>
     public static readonly TimeSpan MinLocationInterval = TimeSpan.FromSeconds(3);
     /// <summary>A fix whose device timestamp is older than this is discarded as stale.</summary>

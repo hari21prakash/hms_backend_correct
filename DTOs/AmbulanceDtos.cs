@@ -217,7 +217,27 @@ public record DispatchAssignmentDto(
     DateTime? CompletedAt,
     string? DeclineReason,
     AmbulanceLocationDto? Location,
-    double? DistanceKm);
+    double? DistanceKm,
+    // ---- GPS-assisted workflow (optional so older callers keep working)
+    /// <summary>"Auto" when GPS recorded the arrival at the scene, "Manual" when the driver did, null until it happened.</summary>
+    string? ArrivalMethod = null,
+    string? HospitalArrivalMethod = null,
+    string? PickupConfirmedSource = null,
+    /// <summary>The confirmation the trip is waiting for: "Pickup" (ambulance at the scene, patient not yet confirmed on board) or "Handover" (at the hospital, handover not yet confirmed).</summary>
+    string? PendingConfirmation = null);
+
+/// <summary>Who did what, and when, on one trip. Built from the latest assignment, so it is still there after the trip is completed.</summary>
+public record TripConfirmationsDto(
+    string? ArrivalMethod,
+    DateTime? ArrivedAt,
+    string? PickupSource,
+    string? PickupBy,
+    DateTime? PickedUpAt,
+    string? HospitalArrivalMethod,
+    DateTime? HospitalArrivedAt,
+    string? HandoverSource,
+    string? HandoverBy,
+    DateTime? HandedOverAt);
 
 public record DispatchRequestDto(
     Guid Id,
@@ -237,7 +257,8 @@ public record DispatchRequestDto(
     string? PatientNumber,
     string? PatientName,
     DispatchAssignmentDto? ActiveAssignment,
-    IReadOnlyList<StatusHistoryItemDto>? History);
+    IReadOnlyList<StatusHistoryItemDto>? History,
+    TripConfirmationsDto? Trip = null);
 
 public class AssignAmbulanceRequest
 {
@@ -280,7 +301,25 @@ public record DriverAssignmentDto(
     AmbulanceType AmbulanceType,
     DateTime AssignedAt,
     DateTime ServerTime,
-    bool TrackingRequired);
+    bool TrackingRequired,
+    // ---- GPS-assisted workflow (all optional so older callers keep working)
+    /// <summary>The configured destination hospital, so the driver screen can show it and offer navigation. Null when not configured.</summary>
+    string? HospitalName = null,
+    double? HospitalLatitude = null,
+    double? HospitalLongitude = null,
+    /// <summary>True when the server will detect arrival at the pickup point from GPS. When false the driver uses the manual button.</summary>
+    bool AutoPickupArrival = false,
+    /// <summary>True when the server will detect arrival at the hospital from GPS (needs the hospital coordinates to be configured).</summary>
+    bool AutoHospitalArrival = false,
+    /// <summary>GPS fixes less accurate than this are ignored for arrival detection; the driver screen warns about them.</summary>
+    double MaxAccuracyMeters = 50,
+    string? ArrivalMethod = null,
+    DateTime? HospitalArrivedAt = null,
+    /// <summary>"Driver" or "Dispatcher": who confirmed the patient is on board (null until then).</summary>
+    string? PickupConfirmedSource = null,
+    string? PickupConfirmedBy = null,
+    /// <summary>"Auto" (GPS) or "Manual": how the arrival at the hospital was recorded (null until it is).</summary>
+    string? HospitalArrivalMethod = null);
 
 public class DriverLocationRequest
 {
@@ -293,4 +332,5 @@ public class DriverLocationRequest
     public DateTime? ClientTimestamp { get; set; }
 }
 
-public record DriverLocationResultDto(bool Accepted, string? Reason, DateTime ServerTime);
+/// <param name="ArrivalEvent">"ArrivedAtPickup" or "ArrivedAtHospital" when THIS update caused the server to record an arrival; otherwise null.</param>
+public record DriverLocationResultDto(bool Accepted, string? Reason, DateTime ServerTime, string? ArrivalEvent = null);

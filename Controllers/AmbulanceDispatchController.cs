@@ -63,6 +63,24 @@ public class AmbulanceDispatchController(IAmbulanceDispatchService dispatch, Amb
         return Ok(ApiResponse<DispatchRequestDto>.Ok(await dispatch.AssignAsync(id, request.AmbulanceId!.Value, Actor, View, cancellationToken), "Ambulance assigned."));
     }
 
+    /// <summary>Hospital/dispatch confirmation that the patient is on board. The driver's own button remains as the fallback.</summary>
+    [HttpPost("requests/{id:guid}/confirm-pickup")]
+    [HasPermission("ambulances.requests.manage")]
+    public async Task<IActionResult> ConfirmPickup(Guid id, CancellationToken cancellationToken)
+    {
+        await Guard(cancellationToken);
+        return Ok(ApiResponse<DispatchRequestDto>.Ok(await dispatch.ConfirmPickupAsync(id, Actor, View, cancellationToken), "Patient pick-up confirmed."));
+    }
+
+    /// <summary>Hospital/dispatch confirmation that the patient was handed over. Completes the trip and releases the ambulance.</summary>
+    [HttpPost("requests/{id:guid}/confirm-handover")]
+    [HasPermission("ambulances.requests.manage")]
+    public async Task<IActionResult> ConfirmHandover(Guid id, CancellationToken cancellationToken)
+    {
+        await Guard(cancellationToken);
+        return Ok(ApiResponse<DispatchRequestDto>.Ok(await dispatch.ConfirmHandoverAsync(id, Actor, View, cancellationToken), "Patient handover confirmed. Trip completed."));
+    }
+
     [HttpPost("requests/{id:guid}/complete")]
     [HasPermission("ambulances.requests.manage")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken cancellationToken)

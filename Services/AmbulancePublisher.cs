@@ -22,9 +22,13 @@ public class AmbulancePublisher(AppDbContext dbContext, IAmbulanceBroadcaster br
             .Include(a => a.Request).Include(a => a.Ambulance).ThenInclude(a => a.Provider).Include(a => a.DriverUser)
             .Where(a => a.RequestId == requestId && a.IsActive)
             .FirstOrDefaultAsync(cancellationToken);
+        var latest = active ?? await dbContext.AmbulanceAssignments.AsNoTracking()
+            .Include(a => a.Request).Include(a => a.Ambulance).ThenInclude(a => a.Provider).Include(a => a.DriverUser)
+            .Where(a => a.RequestId == requestId).OrderByDescending(a => a.AssignedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 
         await broadcaster.RequestChangedAsync(
-            AmbulanceMapper.ToRequestDto(request, active, null, DispatchView),
+            AmbulanceMapper.ToRequestDto(request, active, null, DispatchView, latest),
             await requests.BuildPublicViewAsync(requestId, cancellationToken));
 
         var changedAssignment = active;

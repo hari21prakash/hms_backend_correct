@@ -11,10 +11,14 @@ public interface IAmbulanceTrackingService
 {
     Task<DriverAssignmentDto?> GetMyAssignmentAsync(Guid driverUserId, CancellationToken cancellationToken);
     Task<DriverAssignmentDto?> AcceptAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
+    /// <summary>Accepts the assignment AND starts the trip (GPS tracking) in one step. Safe to repeat: a retry changes nothing.</summary>
+    Task<DriverAssignmentDto?> AcceptAndStartAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
     Task<DriverAssignmentDto?> DeclineAsync(Guid driverUserId, string? reason, AuditActor actor, CancellationToken cancellationToken);
     Task<DriverAssignmentDto?> StartTripAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
     Task<DriverAssignmentDto?> ArrivedAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
+    /// <summary>Manual fallback for when GPS cannot detect arrival at the hospital. Safe to repeat.</summary>
+    Task<DriverAssignmentDto?> HospitalArrivedAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
     Task<DriverAssignmentDto?> PatientPickedUpAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
     Task<DriverAssignmentDto?> CompleteAsync(Guid driverUserId, AuditActor actor, CancellationToken cancellationToken);
-    Task<DriverLocationResultDto> UpdateLocationAsync(Guid driverUserId, DriverLocationRequest request, CancellationToken cancellationToken);
+    Task<DriverLocationResultDto> UpdateLocationAsync(Guid driverUserId, DriverLocationRequest request, CancellationToken cancellationToken, AuditActor? actor = null);
 }

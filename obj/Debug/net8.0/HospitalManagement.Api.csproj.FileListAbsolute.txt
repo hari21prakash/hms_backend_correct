@@ -120,3 +120,4 @@ E:\New folder (35)\New folder\hospital-management-system-corrected\hospital-mana
 E:\New folder (35)\New folder\hospital-management-system-corrected\hospital-management-system\backend\HospitalManagement.Api\obj\Debug\net8.0\HospitalManagement.Api.pdb
 E:\New folder (35)\New folder\hospital-management-system-corrected\hospital-management-system\backend\HospitalManagement.Api\obj\Debug\net8.0\HospitalManagement.Api.genruntimeconfig.cache
 E:\New folder (35)\New folder\hospital-management-system-corrected\hospital-management-system\backend\HospitalManagement.Api\obj\Debug\net8.0\ref\HospitalManagement.Api.dll
+E:\New folder (35)\New folder\hospital-management-system-corrected\hospital-management-system\backend\HospitalManagement.Api\obj\Debug\net8.0\HospitalManagement.Api.sourcelink.json

@@ -2424,8 +2424,21 @@ namespace HospitalManagement.Api.Migrations
                     b.Property<Guid>("AmbulanceId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ArrivalMethod")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<double?>("ArrivedAccuracyMeters")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTime?>("ArrivedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("ArrivedLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ArrivedLongitude")
+                        .HasColumnType("double precision");
 
                     b.Property<DateTime>("AssignedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2449,11 +2462,49 @@ namespace HospitalManagement.Api.Migrations
                     b.Property<DateTime?>("EndedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("HandoverConfirmedByName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid?>("HandoverConfirmedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("HandoverConfirmedSource")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
+
+                    b.Property<string>("HospitalArrivalMethod")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<double?>("HospitalArrivedAccuracyMeters")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("HospitalArrivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("HospitalArrivedLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("HospitalArrivedLongitude")
+                        .HasColumnType("double precision");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PickupConfirmedByName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid?>("PickupConfirmedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PickupConfirmedSource")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
 
                     b.Property<Guid>("RequestId")
                         .HasColumnType("uuid");
